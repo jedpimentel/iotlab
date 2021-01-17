@@ -1,5 +1,6 @@
 #include "arduino_secrets.h"
 #include <WiFiNINA.h>
+#include <RTCZero.h>
 
 IPAddress ip(SECRET_IP[0], SECRET_IP[1], SECRET_IP[2], SECRET_IP[3]);
 
@@ -8,8 +9,9 @@ const char ssid[] = SECRET_SSID;//network name string
 const char pass[] = SECRET_PASS;//network password string
 int status = WL_IDLE_STATUS;//WiFi radio status
 WiFiServer server(80);
-
 WiFiClient client = server.available();
+
+RTCZero rtc;
 
 /* I'm starting off referencing the MKRWiFi1010's 
  * "connectingto a wifi network" tutorial as a starting
@@ -25,7 +27,8 @@ void setup() {
   listNetworks();
 
   //attempt to connect to wifi network:
-  WiFi.config(ip);
+//  setting custom IP was breaking the real time clock functionality
+//  WiFi.config(ip);
   while (status != WL_CONNECTED) {
     Serial.print("Attempting to connect to network:");
     Serial.println(ssid);
@@ -42,8 +45,38 @@ void setup() {
   Serial.println(separator);
   printData();
   Serial.println(separator);
+//  server.begin();
 
-  server.begin();
+  
+  //init real time clock and give it the correct time
+  //depends on network time protocol to be reachable via WiFiNINA
+  {
+    rtc.begin();
+    
+    unsigned long epoch;
+    int attempts = 0, maxAttempts = 6;
+    do {
+      epoch = WiFi.getTime();
+      Serial.println(epoch);
+      attempts++;
+      if (epoch == 0) {
+        delay(2000);
+      }
+    }
+    while (epoch == 0 && attempts < maxAttempts);
+    if (attempts == maxAttempts) {
+      Serial.println("Network Time Protocol unreachable :(");
+      Serial.println("reset device to try again");
+      Serial.println("device will now stop");
+      while(1);//TODO: better way to handle failure
+    }
+    else {
+      Serial.println("Epoch received:");
+      Serial.println(epoch);
+      rtc.setEpoch(epoch);
+      Serial.println();
+    }
+  }
 }
 
 void loop() {
