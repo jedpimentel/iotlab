@@ -1,16 +1,23 @@
-#include <WiFiNINA.h>
 #include "arduino_secrets.h"
+#include <WiFiNINA.h>
+
+IPAddress ip(SECRET_IP[0], SECRET_IP[1], SECRET_IP[2], SECRET_IP[3]);
 
 const char separator[] = "----------------"; 
 const char ssid[] = SECRET_SSID;//network name string
 const char pass[] = SECRET_PASS;//network password string
 int status = WL_IDLE_STATUS;//WiFi radio status
+WiFiServer server(80);
+
+WiFiClient client = server.available();
 
 /* I'm starting off referencing the MKRWiFi1010's 
  * "connectingto a wifi network" tutorial as a starting
  * point
   */
 void setup() {
+  // initialize digital pin LED_BUILTIN as an output.
+  pinMode(LED_BUILTIN, OUTPUT);
   // initialize serial and wait for port to opwn
   Serial.begin(9600);
   while (!Serial);
@@ -18,6 +25,7 @@ void setup() {
   listNetworks();
 
   //attempt to connect to wifi network:
+  WiFi.config(ip);
   while (status != WL_CONNECTED) {
     Serial.print("Attempting to connect to network:");
     Serial.println(ssid);
@@ -34,6 +42,8 @@ void setup() {
   Serial.println(separator);
   printData();
   Serial.println(separator);
+
+  server.begin();
 }
 
 void loop() {
