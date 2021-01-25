@@ -2,8 +2,6 @@
 #include <WiFiNINA.h>
 #include <RTCZero.h>
 
-//IPAddress ip(SECRET_IP[0], SECRET_IP[1], SECRET_IP[2], SECRET_IP[3]);
-
 const char separator[] = "----------------"; 
 const char ssid[] = SECRET_SSID;//network name string
 const char pass[] = SECRET_PASS;//network password string
@@ -12,30 +10,36 @@ WiFiServer server(80);
 WiFiClient client = server.available();
 
 RTCZero rtc;
-const int timeZone = -5;//TODO: move into a config file
+const int time_zone = -5;//TODO: move into a config file
 
 void setup() {
-  // initialize digital pin LED_BUILTIN as an output.
-  pinMode(LED_BUILTIN, OUTPUT);
-  // initialize serial and wait for port to opwn
   Serial.begin(9600);
-  while (!Serial);
+  while (!Serial);// comment this out for headless mode?
 
-//  listNetworks();
+  init_network_connection();
+  // server.begin();
+  init_rtc_with_network_time();
+  Serial.print("Startup OK!");
 
-//  attempt to connect to wifi network:
-//  WiFi.config(ip);
+  pinMode(LED_BUILTIN, OUTPUT);
+}
+
+// toggle led
+void loop() {
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(3000);
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(5000);
+}
+
+void init_network_connection() {
+  // listNetworks();
   while (status != WL_CONNECTED) {
-    Serial.print("Attempting to connect to network: ");
+    Serial.print("Attempting connection to WiFi: ");
     Serial.println(ssid);
-//    Serial.println(pass);
-//    connect to wpa/wpa2 network:
     status = WiFi.begin(ssid, pass);
 
-//    wait 10-ish seconds for connection
-//    seems excesive to me but okay
-//    delay(10000);
-    for (int mSec = 10000; status != WL_CONNECTED && mSec > 0; mSec--) {
+    for (int ms = 10000; status != WL_CONNECTED && ms > 0; ms--) {
       delay(1);
     }
   }
@@ -43,57 +47,45 @@ void setup() {
   Serial.println("Device is connected to network");
   Serial.println(separator);
   printData();
-  Serial.println(separator);
-//  server.begin();
+}
 
+
+void init_rtc_with_network_time() {
+  rtc.begin();
   
-  //init real time clock and give it the correct time
-  //depends on network time protocol to be reachable via WiFiNINA
-  {
-    rtc.begin();
-    
-    unsigned long epoch;
-    int attempts = 0, maxAttempts = 6;
-    Serial.print("Getting Network Time");
-    do {
-      epoch = WiFi.getTime();
-      Serial.print(".");
-      attempts++;
-      if (epoch == 0) {
-        delay(2000);
-      }
+  unsigned long epoch;
+  int attempts = 0, maxAttempts = 6;
+  Serial.print("Getting Network Time");
+  do {
+    epoch = WiFi.getTime();
+    Serial.print(".");
+    attempts++;
+    if (epoch == 0) {
+      delay(2000);
     }
-    while (epoch == 0 && attempts < maxAttempts);
-    Serial.println();
-    
-    if (attempts == maxAttempts) {
-      Serial.println("Network Time Protocol unreachable :(");
-      Serial.println("reset device to try again");
-      Serial.println("device will now stop");
-      while(1);//TODO: better way to handle failure
-    }
-    else {
-      Serial.println("Epoch received:");
-      Serial.println(epoch);
-      rtc.setEpoch(epoch + timeZone * 60 * 60);
-      Serial.println();
-    }
-
-    printDateTime();
+  }
+  while (epoch == 0 && attempts < maxAttempts);
+  Serial.println();
+  
+  if (attempts == maxAttempts) {
+    Serial.println("Network Time Protocol unreachable :(");
+    Serial.println("device will now give up initializing");
+    Serial.println("firmware will someday handle this case better");
+    while(1);//TODO: better way to handle failure
+  }
+  else {
+    Serial.println("Epoch received:");
+    Serial.println(epoch);
+    rtc.setEpoch(epoch + time_zone * 60 * 60);
     Serial.println();
   }
 
-  Serial.println("Initialization Good");
-}
-
-void loop() {
-  delay(10000);
-//  printData();
-//  Serial.println(separator);
+  printDateTime();
+  Serial.println();
 }
 
 void printData() {
-  Serial.println("Board Information:");
+  Serial.println("Connection Information:");
   IPAddress ip = WiFi.localIP();
   Serial.print("IP Address: ");
   Serial.println(ip);
@@ -103,10 +95,11 @@ void printData() {
   Serial.print("SSID:");
   Serial.println(WiFi.SSID());
 
-  //print the received signal strength
   long rssi = WiFi.RSSI();
   Serial.print("signal strength (RSSI):");
   Serial.println(rssi);
+
+  Serial.println(separator);
 }
 
 // https://www.arduino.cc/en/Reference/WiFiNINAScanNetworks
@@ -131,8 +124,6 @@ void listNetworks() {
     Serial.print("\tSignal: ");
     Serial.print(WiFi.RSSI(thisNet));
     Serial.println(" dBm");
-//    Serial.print("\tEncryption: ");
-//    printEncryptionType(WiFi.encryptionType(thisNet));
   }
 }
 
@@ -147,7 +138,7 @@ void printTime() {
 // like it might break near beggining or end of day
 // I'm going against reference, and instead implementing the time offset clockside
 //https://www.arduino.cc/en/Tutorial/WiFiRTC
-//  print2digits(rtc.getHours() + timeZone);
+//  print2digits(rtc.getHours() + time_zone);
   print2digits(rtc.getHours());
   Serial.print(":");
   print2digits(rtc.getMinutes());
