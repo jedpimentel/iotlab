@@ -1,6 +1,7 @@
 #include "arduino_secrets.h"
 #include <WiFiNINA.h>
 #include <RTCZero.h>
+#include <Servo.h>
 
 // TODO: create a Debug.print function instead of Serial.print directly
 // is there a way to just not compile debug lines, instead of "#if DEBUG_MODE"
@@ -17,7 +18,13 @@ WiFiClient client = server.available();
 RTCZero rtc;
 const int time_zone = -5;  // TODO: move into a config file
 
+Servo servo_0;
+
 void setup() {
+
+  pinMode(LED_BUILTIN, OUTPUT);
+  servo_0.attach(2);  
+
   #if DEBUG_MODE
     Serial.begin(9600);
     while (!Serial);  // comment this out for headless mode?
@@ -26,16 +33,15 @@ void setup() {
   init_network_connection();
   // server.begin();
   init_rtc_with_network_time();
-
-
-  pinMode(LED_BUILTIN, OUTPUT);
 }
 
 // toggle led
 void loop() {
   digitalWrite(LED_BUILTIN, HIGH);
+  servo_0.write(0);
   delay(1000);
   digitalWrite(LED_BUILTIN, LOW);
+  servo_0.write(180);
   delay(1000);
 }
 
