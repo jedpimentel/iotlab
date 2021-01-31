@@ -2,24 +2,31 @@
 #include <WiFiNINA.h>
 #include <RTCZero.h>
 
+// TODO: create a Debug.print function instead of Serial.print directly
+// is there a way to just not compile debug lines, instead of "#if DEBUG_MODE"
+// statements? like, seriously just a fla
+#define DEBUG_MODE false  // headless mode shouldn't have Serial calls 
+
 const char separator[] = "----------------"; 
-const char ssid[] = SECRET_SSID;//network name string
-const char pass[] = SECRET_PASS;//network password string
-int status = WL_IDLE_STATUS;//WiFi radio status
+const char ssid[] = SECRET_SSID;  // network name string
+const char pass[] = SECRET_PASS;  // network password string
+int status = WL_IDLE_STATUS;  // WiFi radio status
 WiFiServer server(80);
 WiFiClient client = server.available();
 
 RTCZero rtc;
-const int time_zone = -5;//TODO: move into a config file
+const int time_zone = -5;  // TODO: move into a config file
 
 void setup() {
-  Serial.begin(9600);
-  while (!Serial);// comment this out for headless mode?
+  #if DEBUG_MODE
+    Serial.begin(9600);
+    while (!Serial);  // comment this out for headless mode?
+  #endif
 
   init_network_connection();
   // server.begin();
   init_rtc_with_network_time();
-  Serial.print("Startup OK!");
+
 
   pinMode(LED_BUILTIN, OUTPUT);
 }
@@ -27,26 +34,30 @@ void setup() {
 // toggle led
 void loop() {
   digitalWrite(LED_BUILTIN, HIGH);
-  delay(3000);
+  delay(1000);
   digitalWrite(LED_BUILTIN, LOW);
-  delay(5000);
+  delay(1000);
 }
 
 void init_network_connection() {
   // listNetworks();
   while (status != WL_CONNECTED) {
-    Serial.print("Attempting connection to WiFi: ");
-    Serial.println(ssid);
-    status = WiFi.begin(ssid, pass);
+    #if DEBUG_MODE
+      Serial.print("Attempting connection to WiFi: ");
+      Serial.println(ssid);
+    #endif
 
+    status = WiFi.begin(ssid, pass);
     for (int ms = 10000; status != WL_CONNECTED && ms > 0; ms--) {
       delay(1);
     }
   }
-
-  Serial.println("Device is connected to network");
-  Serial.println(separator);
-  printData();
+  #if DEBUG_MODE
+    Serial.print("Startup OK!");
+    Serial.println("Device is connected to network");
+    Serial.println(separator);
+    printData();
+  #endif
 }
 
 
@@ -55,33 +66,38 @@ void init_rtc_with_network_time() {
   
   unsigned long epoch;
   int attempts = 0, maxAttempts = 6;
-  Serial.print("Getting Network Time");
+  #if DEBUG_MODE
+    Serial.println("Getting Network Time");
+  #endif
   do {
     epoch = WiFi.getTime();
-    Serial.print(".");
     attempts++;
     if (epoch == 0) {
       delay(2000);
     }
   }
   while (epoch == 0 && attempts < maxAttempts);
-  Serial.println();
   
   if (attempts == maxAttempts) {
-    Serial.println("Network Time Protocol unreachable :(");
-    Serial.println("device will now give up initializing");
-    Serial.println("firmware will someday handle this case better");
-    while(1);//TODO: better way to handle failure
+    #if DEBUG_MODE
+      Serial.print("Network Time Protocol unreachable, attempted");
+      Serial.print(maxAttempts);
+      Serial.println("times");
+      Serial.println("device will now give up initializing");
+      Serial.println("firmware will someday handle this case better");
+    #endif
+    // TODO: better way to handle failure
+    while(1);
   }
-  else {
+  #if DEBUG_MODE
     Serial.println("Epoch received:");
     Serial.println(epoch);
-    rtc.setEpoch(epoch + time_zone * 60 * 60);
     Serial.println();
-  }
+    printDateTime();
+    Serial.println();
+  #endif
 
-  printDateTime();
-  Serial.println();
+  rtc.setEpoch(epoch + time_zone * 60 * 60);
 }
 
 void printData() {
