@@ -1,11 +1,10 @@
 #iotlab
 
-Requires Arduino mkrwifi1010
+Made with Arduino mkrwifi1010
 
 Currently, Marionette connects to a local wifi, and gets the network time.
 
 Roadmap:
-* Option to run script without a Serial connection
 * Handle situations where network isn't available on startup
 * Wake/Sleep cycle
 

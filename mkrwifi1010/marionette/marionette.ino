@@ -1,7 +1,33 @@
 #include "arduino_secrets.h"
 #include <WiFiNINA.h>
+#include <utility/wifi_drv.h>
+
 #include <RTCZero.h>
 #include <Servo.h>
+
+void setup_rgb() {
+  WiFiDrv::pinMode(25, OUTPUT);
+  WiFiDrv::pinMode(26, OUTPUT);
+  WiFiDrv::pinMode(27, OUTPUT);
+}
+int yo = 0;
+int colors[7][3] = {
+  {0, 0,0},
+  {127, 0,0},
+  {64, 127,0},
+  {0, 127, 0},
+  {0, 127, 64},
+  {0, 0, 255},
+  {127, 127, 127},
+};
+void change_rgb() {
+//  int yo = 1;
+  WiFiDrv::analogWrite(26, colors[yo][0]); //Red
+  WiFiDrv::analogWrite(25, colors[yo][1]); //Green
+  WiFiDrv::analogWrite(27, colors[yo][2]); //Blue
+  yo++;
+  yo %= sizeof(colors) / sizeof(colors[0]);
+}
 
 // TODO: create a Debug.print function instead of Serial.print directly
 // is there a way to just not compile debug lines, instead of "#if DEBUG_MODE"
@@ -22,6 +48,15 @@ Servo servo_0;
 
 void setup() {
 
+//  setup_rgb();
+  
+  WiFiDrv::pinMode(25, OUTPUT);
+  WiFiDrv::pinMode(26, OUTPUT);
+  WiFiDrv::pinMode(27, OUTPUT);
+//  change_rgb();
+
+  pinMode(0, OUTPUT);
+  pinMode(1, OUTPUT);
   pinMode(LED_BUILTIN, OUTPUT);
   servo_0.attach(2);  
 
@@ -37,12 +72,26 @@ void setup() {
 
 // toggle led
 void loop() {
-  digitalWrite(LED_BUILTIN, HIGH);
-  servo_0.write(0);
-  delay(1000);
-  digitalWrite(LED_BUILTIN, LOW);
-  servo_0.write(180);
-  delay(1000);
+  change_rgb();
+  toggle(true);
+  delay(500);
+  toggle(false);
+  delay(500);
+}
+
+void toggle(bool on) {
+  if (on) {
+    digitalWrite(0, HIGH);
+    digitalWrite(1, HIGH);
+    digitalWrite(LED_BUILTIN, HIGH);
+    servo_0.write(0);
+  }
+  else {
+    digitalWrite(0, LOW);
+    digitalWrite(1, LOW);
+    digitalWrite(LED_BUILTIN, LOW);
+    servo_0.write(180);
+  }
 }
 
 void init_network_connection() {
