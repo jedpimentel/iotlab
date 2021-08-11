@@ -5,6 +5,46 @@
 #include <RTCZero.h>
 #include <Servo.h>
 
+#define motor_a_pwm 20
+#define motor_a_pin_1 1
+#define motor_a_pin_2 2
+
+#define motor_b_pwm 21
+#define motor_b_pin_1 3
+#define motor_b_pin_2 4
+
+#include "motor_controller.h"
+
+void setup_motor_driver() {
+  pinMode(motor_a_pwm, OUTPUT);
+  pinMode(motor_a_pin_1, OUTPUT);
+  pinMode(motor_a_pin_2, OUTPUT);
+  pinMode(motor_b_pwm, OUTPUT);
+  pinMode(motor_b_pin_1, OUTPUT);
+  pinMode(motor_b_pin_2, OUTPUT);
+
+  analogWrite(motor_a_pwm, 255);
+  analogWrite(motor_b_pwm, 255);
+}
+
+void motor_driver_demo() {
+  digitalWrite(motor_a_pin_1, HIGH);
+  digitalWrite(motor_a_pin_2, LOW);
+  digitalWrite(motor_b_pin_1, HIGH);
+  digitalWrite(motor_b_pin_2, LOW);
+  delay(1000);
+  digitalWrite(motor_a_pin_1, LOW);
+  digitalWrite(motor_a_pin_2, HIGH);
+  digitalWrite(motor_b_pin_1, LOW);
+  digitalWrite(motor_b_pin_2, HIGH);
+  delay(1000);
+  digitalWrite(motor_a_pin_1, LOW);
+  digitalWrite(motor_a_pin_2, LOW);
+  digitalWrite(motor_b_pin_1, LOW);
+  digitalWrite(motor_b_pin_2, LOW);
+  
+}
+
 void setup_rgb() {
   WiFiDrv::pinMode(25, OUTPUT);
   WiFiDrv::pinMode(26, OUTPUT);
@@ -12,7 +52,7 @@ void setup_rgb() {
 }
 int yo = 0;
 int colors[7][3] = {
-  {0, 0,0},
+  {127, 0, 127},
   {127, 0,0},
   {64, 127,0},
   {0, 127, 0},
@@ -30,9 +70,8 @@ void change_rgb() {
 }
 
 // TODO: create a Debug.print function instead of Serial.print directly
-// is there a way to just not compile debug lines, instead of "#if DEBUG_MODE"
-// statements? like, seriously just a fla
-#define DEBUG_MODE false  // headless mode shouldn't have Serial calls 
+// debug mode prints stuff via Serial, "while(!Serial)" is an infinite loop if !Serial
+#define SERIAL_DEBUG_MODE false  // headless mode shouldn't have Serial calls 
 
 const char separator[] = "----------------"; 
 const char ssid[] = SECRET_SSID;  // network name string
@@ -44,35 +83,25 @@ WiFiClient client = server.available();
 RTCZero rtc;
 const int time_zone = -5;  // TODO: move into a config file
 
-Servo servo_0;
-
 void setup() {
+  setup_motor_driver();
+  setup_rgb();
 
-//  setup_rgb();
-  
-  WiFiDrv::pinMode(25, OUTPUT);
-  WiFiDrv::pinMode(26, OUTPUT);
-  WiFiDrv::pinMode(27, OUTPUT);
-//  change_rgb();
-
-  pinMode(0, OUTPUT);
-  pinMode(1, OUTPUT);
   pinMode(LED_BUILTIN, OUTPUT);
-  servo_0.attach(2);  
 
-  #if DEBUG_MODE
+  #if SERIAL_DEBUG_MODE
     Serial.begin(9600);
-    while (!Serial);  // comment this out for headless mode?
+    while (!Serial);
   #endif
 
   init_network_connection();
-  // server.begin();
   init_rtc_with_network_time();
 }
 
 // toggle led
 void loop() {
   change_rgb();
+  motor_driver_demo();
   toggle(true);
   delay(500);
   toggle(false);
@@ -81,23 +110,17 @@ void loop() {
 
 void toggle(bool on) {
   if (on) {
-    digitalWrite(0, HIGH);
-    digitalWrite(1, HIGH);
     digitalWrite(LED_BUILTIN, HIGH);
-    servo_0.write(0);
   }
   else {
-    digitalWrite(0, LOW);
-    digitalWrite(1, LOW);
     digitalWrite(LED_BUILTIN, LOW);
-    servo_0.write(180);
   }
 }
 
 void init_network_connection() {
-  // listNetworks();
+  listNetworks();
   while (status != WL_CONNECTED) {
-    #if DEBUG_MODE
+    #if SERIAL_DEBUG_MODE
       Serial.print("Attempting connection to WiFi: ");
       Serial.println(ssid);
     #endif
@@ -107,7 +130,7 @@ void init_network_connection() {
       delay(1);
     }
   }
-  #if DEBUG_MODE
+  #if SERIAL_DEBUG_MODE
     Serial.print("Startup OK!");
     Serial.println("Device is connected to network");
     Serial.println(separator);
@@ -121,7 +144,7 @@ void init_rtc_with_network_time() {
   
   unsigned long epoch;
   int attempts = 0, maxAttempts = 6;
-  #if DEBUG_MODE
+  #if SERIAL_DEBUG_MODE
     Serial.println("Getting Network Time");
   #endif
   do {
@@ -134,7 +157,7 @@ void init_rtc_with_network_time() {
   while (epoch == 0 && attempts < maxAttempts);
   
   if (attempts == maxAttempts) {
-    #if DEBUG_MODE
+    #if SERIAL_DEBUG_MODE
       Serial.print("Network Time Protocol unreachable, attempted");
       Serial.print(maxAttempts);
       Serial.println("times");
@@ -144,7 +167,7 @@ void init_rtc_with_network_time() {
     // TODO: better way to handle failure
     while(1);
   }
-  #if DEBUG_MODE
+  #if SERIAL_DEBUG_MODE
     Serial.println("Epoch received:");
     Serial.println(epoch);
     Serial.println();
